@@ -1,0 +1,6 @@
+{
+  "name": "حيدر للعطور",
+  "description": "Luxury Arabic RTL perfume shop POS, flexible decimal inventory, QR digital loyalty cards, and analytics for Haider Parfums.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

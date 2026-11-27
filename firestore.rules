@@ -1,0 +1,266 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidProduct(data, userId) {
+      return data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+             (!('subtitle' in data) || data.subtitle == null || (data.subtitle is string && data.subtitle.size() <= 160)) &&
+             (!('barcode' in data) || data.barcode == null || (data.barcode is string && data.barcode.size() <= 80)) &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.unitLabel is string && data.unitLabel.size() >= 1 && data.unitLabel.size() <= 40 &&
+             data.buyPrice is number && data.buyPrice >= 0 && data.buyPrice <= 100000000 &&
+             data.sellPrice is number && data.sellPrice >= 0 && data.sellPrice <= 100000000 &&
+             data.currentStock is number && data.currentStock >= 0 && data.currentStock <= 100000000 &&
+             data.minStockAlert is number && data.minStockAlert >= 0 && data.minStockAlert <= 100000000 &&
+             data.imageKey is string && data.imageKey.size() <= 60 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidLookup(data, userId) {
+      return data.userId == userId &&
+             data.lookupType is string && data.lookupType in ['CATEGORY', 'UNIT', 'QUICK_SIZE'] &&
+             data.label is string && data.label.size() >= 1 && data.label.size() <= 60 &&
+             data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 10000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCustomer(data, userId) {
+      return data.userId == userId &&
+             data.loyaltyCode is string && data.loyaltyCode.size() >= 3 && data.loyaltyCode.size() <= 32 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+             (!('phone' in data) || data.phone == null || (data.phone is string && data.phone.size() <= 40)) &&
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 500)) &&
+             data.creditBalance is number && data.creditBalance >= 0 && data.creditBalance <= 100000000 &&
+             data.stamps is int && data.stamps >= 0 && data.stamps <= 1000 &&
+             data.points is int && data.points >= 0 && data.points <= 10000000 &&
+             data.loyaltyMode is string && data.loyaltyMode in ['STAMPS', 'POINTS'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCreditLog(data, userId) {
+      return data.userId == userId &&
+             data.customerId is string && data.customerId.size() >= 1 && data.customerId.size() <= 128 &&
+             data.amountDelta is number && data.amountDelta >= -100000000 && data.amountDelta <= 100000000 &&
+             data.note is string && data.note.size() <= 300 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidSale(data, userId) {
+      return data.userId == userId &&
+             data.invoiceNumber is string && data.invoiceNumber.size() >= 1 && data.invoiceNumber.size() <= 40 &&
+             (!('customerId' in data) || data.customerId == null || (data.customerId is string && data.customerId.size() <= 128)) &&
+             (!('customerNameSnapshot' in data) || data.customerNameSnapshot == null || (data.customerNameSnapshot is string && data.customerNameSnapshot.size() <= 120)) &&
+             data.paymentMethod is string && data.paymentMethod in ['CASH', 'CREDIT'] &&
+             data.subtotal is number && data.subtotal >= 0 && data.subtotal <= 100000000 &&
+             data.discount is number && data.discount >= 0 && data.discount <= 100000000 &&
+             data.totalAmount is number && data.totalAmount >= 0 && data.totalAmount <= 100000000 &&
+             data.estimatedProfit is number && data.estimatedProfit >= -100000000 && data.estimatedProfit <= 100000000 &&
+             data.stampAwarded is bool &&
+             data.returned is bool &&
+             data.items is list && data.items.size() <= 100 &&
+             (data.items.size() == 0 || data.items[0] is map) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidShopSettings(data, userId) {
+      return data.userId == userId &&
+             data.shopName is string && data.shopName.size() >= 1 && data.shopName.size() <= 80 &&
+             data.currencySymbol is string && data.currencySymbol.size() >= 1 && data.currencySymbol.size() <= 16 &&
+             data.defaultLoyaltyMode is string && data.defaultLoyaltyMode in ['STAMPS', 'POINTS'] &&
+             data.stampTarget is int && data.stampTarget >= 1 && data.stampTarget <= 50 &&
+             data.rewardText is string && data.rewardText.size() >= 1 && data.rewardText.size() <= 160 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    match /users/{userId} {
+      allow read, write: if false;
+
+      match /products/{productId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(productId);
+        allow create: if isOwner(userId) &&
+                         isValidId(productId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'name', 'category', 'unitLabel', 'buyPrice',
+                           'sellPrice', 'currentStock', 'minStockAlert', 'imageKey',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'name', 'subtitle', 'barcode', 'category',
+                           'unitLabel', 'buyPrice', 'sellPrice', 'currentStock',
+                           'minStockAlert', 'imageKey', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidProduct(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(productId) &&
+                         isValidProduct(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'name', 'subtitle', 'barcode', 'category', 'unitLabel',
+                           'buyPrice', 'sellPrice', 'currentStock', 'minStockAlert',
+                           'imageKey', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(productId);
+      }
+
+      match /lookups/{lookupId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(lookupId);
+        allow create: if isOwner(userId) &&
+                         isValidId(lookupId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'lookupType', 'label', 'sortOrder', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'lookupType', 'label', 'sortOrder', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidLookup(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(lookupId) &&
+                         isValidLookup(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'lookupType', 'label', 'sortOrder', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(lookupId);
+      }
+
+      match /customers/{customerId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(customerId);
+        allow create: if isOwner(userId) &&
+                         isValidId(customerId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'loyaltyCode', 'name', 'creditBalance',
+                           'stamps', 'points', 'loyaltyMode', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'loyaltyCode', 'name', 'phone', 'notes',
+                           'creditBalance', 'stamps', 'points', 'loyaltyMode',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidCustomer(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(customerId) &&
+                         isValidCustomer(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'loyaltyCode', 'name', 'phone', 'notes', 'creditBalance',
+                           'stamps', 'points', 'loyaltyMode', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(customerId);
+      }
+
+      match /creditLogs/{logId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow create: if isOwner(userId) &&
+                         isValidId(logId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'customerId', 'amountDelta', 'note', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'customerId', 'amountDelta', 'note', 'createdAt'
+                         ]) &&
+                         isValidCreditLog(incoming(), userId);
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(logId);
+      }
+
+      match /sales/{saleId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(saleId);
+        allow create: if isOwner(userId) &&
+                         isValidId(saleId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'invoiceNumber', 'paymentMethod', 'subtotal',
+                           'discount', 'totalAmount', 'estimatedProfit',
+                           'stampAwarded', 'returned', 'items', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'invoiceNumber', 'customerId', 'customerNameSnapshot',
+                           'paymentMethod', 'subtotal', 'discount', 'totalAmount',
+                           'estimatedProfit', 'stampAwarded', 'returned', 'items',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidSale(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(saleId) &&
+                         isValidSale(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'invoiceNumber', 'customerId', 'customerNameSnapshot',
+                           'paymentMethod', 'subtotal', 'discount', 'totalAmount',
+                           'estimatedProfit', 'stampAwarded', 'returned', 'items', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(saleId);
+      }
+
+      match /settings/{settingId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(settingId);
+        allow create: if isOwner(userId) &&
+                         isValidId(settingId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'shopName', 'currencySymbol', 'defaultLoyaltyMode',
+                           'stampTarget', 'rewardText', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'shopName', 'currencySymbol', 'defaultLoyaltyMode',
+                           'stampTarget', 'rewardText', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidShopSettings(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(settingId) &&
+                         isValidShopSettings(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'shopName', 'currencySymbol', 'defaultLoyaltyMode',
+                           'stampTarget', 'rewardText', 'updatedAt'
+                         ]);
+        allow delete: if isOwner(userId) && isValidId(settingId);
+      }
+    }
+  }
+}

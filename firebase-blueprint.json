@@ -1,0 +1,179 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Perfume or decant inventory item with flexible category, unit label, and decimal stock.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "name": { "type": "string", "description": "Perfume display name." },
+        "subtitle": { "type": "string", "description": "Optional fragrance notes or Latin name." },
+        "barcode": { "type": "string", "description": "Optional barcode or internal SKU." },
+        "category": { "type": "string", "description": "Editable category text label." },
+        "unitLabel": { "type": "string", "description": "Editable unit text label (e.g., مل, قارورة)." },
+        "buyPrice": { "type": "number", "description": "Unit purchase cost." },
+        "sellPrice": { "type": "number", "description": "Suggested selling price per unit." },
+        "currentStock": { "type": "number", "description": "Decimal available stock quantity." },
+        "minStockAlert": { "type": "number", "description": "Low-stock alert threshold." },
+        "imageKey": { "type": "string", "description": "Key selecting pre-bundled bottle artwork." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId",
+        "name",
+        "category",
+        "unitLabel",
+        "buyPrice",
+        "sellPrice",
+        "currentStock",
+        "minStockAlert",
+        "imageKey",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LookupEntry": {
+      "title": "LookupEntry",
+      "description": "User-editable lookup value for categories, units, or quick volume chips.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "lookupType": { "type": "string", "enum": ["CATEGORY", "UNIT", "QUICK_SIZE"] },
+        "label": { "type": "string", "description": "Display label or numeric string." },
+        "sortOrder": { "type": "integer", "description": "Display order." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "lookupType", "label", "sortOrder", "createdAt", "updatedAt"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Shop customer profile tracking credit balance and QR loyalty stamps/points.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "loyaltyCode": { "type": "string", "description": "Unique QR loyalty ID (e.g., PRF-1042)." },
+        "name": { "type": "string", "description": "Customer full name." },
+        "phone": { "type": "string", "description": "Optional phone number." },
+        "creditBalance": { "type": "number", "description": "Outstanding credit owed (كريدي)." },
+        "stamps": { "type": "integer", "description": "Current loyalty stamps count." },
+        "points": { "type": "integer", "description": "Current loyalty points balance." },
+        "loyaltyMode": { "type": "string", "enum": ["STAMPS", "POINTS"] },
+        "notes": { "type": "string", "description": "Optional customer notes." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId",
+        "loyaltyCode",
+        "name",
+        "creditBalance",
+        "stamps",
+        "points",
+        "loyaltyMode",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CreditLog": {
+      "title": "CreditLog",
+      "description": "Audit entry for customer credit payments or manual credit adjustments.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "customerId": { "type": "string", "description": "Associated customer document ID." },
+        "amountDelta": { "type": "number", "description": "Signed change to credit balance." },
+        "note": { "type": "string", "description": "Payment or adjustment note." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "customerId", "amountDelta", "note", "createdAt"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Editable POS invoice storing line items, actual prices, payment method, and return status.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "invoiceNumber": { "type": "string", "description": "Human-readable invoice code." },
+        "customerId": { "type": "string", "description": "Optional attached customer document ID." },
+        "customerNameSnapshot": { "type": "string", "description": "Optional customer name at time of sale." },
+        "paymentMethod": { "type": "string", "enum": ["CASH", "CREDIT"] },
+        "subtotal": { "type": "number", "description": "Pre-discount subtotal." },
+        "discount": { "type": "number", "description": "Cart-level discount amount." },
+        "totalAmount": { "type": "number", "description": "Final net total amount." },
+        "estimatedProfit": { "type": "number", "description": "Net profit computed from actual unit prices and costs." },
+        "stampAwarded": { "type": "boolean", "description": "Whether a loyalty stamp was awarded for this sale." },
+        "returned": { "type": "boolean", "description": "Whether the invoice was returned." },
+        "items": { "type": "array", "description": "Bounded list of sale line item maps." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId",
+        "invoiceNumber",
+        "paymentMethod",
+        "subtotal",
+        "discount",
+        "totalAmount",
+        "estimatedProfit",
+        "stampAwarded",
+        "returned",
+        "items",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ShopSettings": {
+      "title": "ShopSettings",
+      "description": "Shop branding, default currency, and customizable loyalty rules.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "shopName": { "type": "string", "description": "Shop display name." },
+        "currencySymbol": { "type": "string", "description": "Editable currency label (default د.ج)." },
+        "defaultLoyaltyMode": { "type": "string", "enum": ["STAMPS", "POINTS"] },
+        "stampTarget": { "type": "integer", "description": "Stamps needed for free perfume reward." },
+        "rewardText": { "type": "string", "description": "Custom reward description shown on card." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp written via FieldValue.serverTimestamp()." }
+      },
+      "required": [
+        "userId",
+        "shopName",
+        "currencySymbol",
+        "defaultLoyaltyMode",
+        "stampTarget",
+        "rewardText",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "User-scoped perfume inventory catalog."
+    },
+    "/users/{userId}/lookups/{lookupId}": {
+      "schema": { "$ref": "#/entities/LookupEntry" },
+      "description": "User-scoped editable categories, units, and quick sizes."
+    },
+    "/users/{userId}/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "User-scoped customer credit and QR loyalty records."
+    },
+    "/users/{userId}/creditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/CreditLog" },
+      "description": "User-scoped customer credit payment logs."
+    },
+    "/users/{userId}/sales/{saleId}": {
+      "schema": { "$ref": "#/entities/Sale" },
+      "description": "User-scoped POS invoices and line items."
+    },
+    "/users/{userId}/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/ShopSettings" },
+      "description": "User-scoped shop configuration document."
+    }
+  }
+}
